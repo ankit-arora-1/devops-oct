@@ -1,0 +1,167 @@
+
+
+Squid proxy
+
+# Install Squid
+sudo apt install squid
+
+# Edit config
+sudo vim /etc/squid/squid.conf
+
+# Add:
+http_port 3128
+acl blocked_sites dstdomain example.com
+http_access deny blocked_sites
+
+acl all src all
+http_access allow all
+
+# Start
+sudo systemctl start squid
+
+From another server:  
+export http_proxy=172.31.14.181:3128 (Ip of squid server and port on which squid is running) -> “http_proxy” tells command-line programs to use a proxy server for HTTP connections.
+Curl http://example.com (removing the deny rule for example server on squid server will make this work) 
+
+
+—————
+
+Nginx
+
+sudo apt install nginx
+curl localhost:80 -> default port for nginx 
+
+Config: sudo vim /etc/nginx/nginx.conf
+
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    sendfile on;
+
+    proxy_cache_path /var/cache/nginx keys_zone=my_cache:10m;
+
+    # Your server block MUST be inside `http { }`
+    server {
+        listen 80;
+        server_name localhost;
+
+        location / {
+            proxy_pass http://localhost:8080
+            proxy_cache my_cache;
+            proxy_cache_valid 200 1m;
+        }
+    }
+}
+
+—————
+
+NGINX Load Balancer
+
+# /etc/nginx/nginx.conf
+
+upstream backend {
+    server 192.168.1.10:8080;  # Server 1
+    server 192.168.1.11:8080;  # Server 2
+    server 192.168.1.12:8080;  # Server 3
+}
+
+server {
+    listen 80;
+    
+    location / {
+        proxy_pass http://backend;
+    }
+}
+
+—————
+
+VPN
+
+sudo apt install wireguard
+wg genkey | tee privatekey | wg pubkey > publickey
+
+# Client config
+[Interface]
+PrivateKey = eA1OJvaDAA4t66QlmA33jlg7SUPXNKB5EATdidCzR10=
+Address = 10.0.0.2/24
+
+[Peer]
+PublicKey = sSS+Lz/ljWddRTi8ernO/wNH82X6yfrEyMoFnT9MNyA=
+Endpoint = 172.31.10.128:51820
+AllowedIPs = 10.0.0.0/24
+
+#Server config
+[Interface]
+PrivateKey = EHmEl6sMAe7vyxX6Vd/0hMV2MIh8PRdQl/IOhTO/p0o=
+Address = 10.0.0.1/24
+ListenPort = 51820
+
+[Peer]
+PublicKey = sgsvOpbOAUK+HUonWu14Xs2lHTNzpmbFhKnURvMnHXA=
+AllowedIPs = 10.0.0.2/32
+
+sudo wg-quick up wg0
+
+——————
+
+IPTables
+
+sudo iptables -L              # Basic list
+sudo iptables -L -v -n        # Verbose with numeric IPs
+sudo iptables -L -v -n --line-numbers  # With line numbers
+
+sudo iptables -t nat -L
+
+Install nginx and curl to it from local laptop:   Add the following rule:  sudo iptables -A INPUT -p tcp --dport 80 -j REJECT  Try curl again from local and see that response won’t come 
+
+By default iptables rules are not persisted:  sudo apt install iptables-persistent
+sudo netfilter-persistent save  ufw:  # Enable firewall
+sudo ufw enable
+
+# Allow SSH (important - don't lock yourself out!)
+sudo ufw allow 22
+
+# Allow HTTP
+sudo ufw allow 80
+
+# Allow HTTPS
+sudo ufw allow 443
+
+# Check status
+sudo ufw status
+
+# Block a port
+sudo ufw deny 3306
+
+# Allow from specific IP
+sudo ufw allow from 192.168.1.100
+
+# Allow specific port from specific IP
+sudo ufw allow from 192.168.1.100 to any port 22
+
+# Delete rule
+sudo ufw delete allow 80
+
+# Allow web traffic
+sudo ufw allow 80
+sudo ufw allow 443
+
+# Allow SSH only from office IP
+sudo ufw allow from 203.0.113.0/24 to any port 22
+
+# Enable firewall
+sudo ufw enable
+
+# Block all other traffic automatically
+
+sudo ufw status numbered
+sudo ufw delete 1
