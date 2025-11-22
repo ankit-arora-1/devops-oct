@@ -1,0 +1,79 @@
+
+
+
+ping google.com  # Test specific interface ping -I eth0 google.com  # Test with packet size ping -s 1000 google.com  # Test gateway ping 192.168.1.1  # Test external IP (bypass DNS) ping 8.8.8.8
+
+ping -c 5 google.com -> Only send 5 packets (don’t run forever)
+
+sudo ping -f google.com -> “-f” stands for flood ping meaning send as many packets as fast as possible without waiting for a reply. Helps with stress testing of networks / servers
+
+# Step 1: Can you reach yourself? ping 127.0.0.1 # If fails: Network stack broken  # Step 2: Can you reach gateway? ping 192.168.1.1 # If fails: Local network issue  # Step 3: Can you reach internet? ping 8.8.8.8 # If fails: Gateway/ISP issue  # Step 4: Can you resolve names? ping google.com # If fails but step 3 works: DNS issue
+
+***********
+
+
+traceroute google.com 
+
+traceroute shows the path that packets take from your computer to a destination
+Use: You can see where packets are getting lost or delayed.
+If you see the same IP repeating indefinitely — that’s a loop in routing.
+You can identify which part of the route adds significant delay.
+
+***********
+
+mtr command -> better version of trace route 
+
+mtr google.com 
+
+mtr -r -c 1 google.com -> report mode, run 1 test
+
+Column	Meaning
+Loss%	Packet loss percentage to that hop
+Snt	Packets sent so far
+Last	Round-trip time (ms) of the most recent packet
+Avg	Average RTT so far
+Best/Wrst	Fastest and slowest RTTs seen
+StDev	Jitter (variation in latency)
+
+*************
+
+PORT SCANNING:
+
+telnet example.com 80
+
+nc -v example.com 80
+
+nc -v google.com 80-85 -> port scanning 
+
+nc -zv google.com 80 -> z flag tells nc not to send any data, just check if the tcp connection can be established. v is for verbose, to print what is happening 
+
+Install Nmap sudo apt install nmap  Basic Nmap Scans # Scan common ports nmap scanme.nmap.org  # Example output: # PORT    STATE  SERVICE # 22/tcp  open   ssh # 80/tcp  open   http # 443/tcp open   https  Useful options: # Scan specific ports nmap -p 22,80,443 myserver.com  # Scan port range nmap -p 1-1000 myserver.com  # Fast scan (top 100 ports) nmap -F myserver.com  # Detect service versions nmap -sV myserver.com  # Detect OS sudo nmap -O myserver.com
+
+**********  tcpdump
+
+
+sudo tcpdump
+
+# Capture from specific interface
+sudo tcpdump -i eth0
+
+# Capture only 10 packets
+sudo tcpdump -c 10
+
+# Only HTTP traffic (port 80) sudo tcpdump port 80  # Only traffic to/from specific host sudo tcpdump host 8.8.8.8  # Only HTTPS traffic (port 443) sudo tcpdump port 443  # Save to file for later analysis sudo tcpdump -w capture.pcap
+
+sudo tcpdump -c 3  # Example output: # 12:34:56.789 IP 192.168.1.10.52345 > 8.8.8.8.80: Flags [S] # 12:34:56.805 IP 8.8.8.8.80 > 192.168.1.10.52345: Flags [S.] # 12:34:56.806 IP 192.168.1.10.52345 > 8.8.8.8.80: Flags [.]
+
+sudo tcpdump -A port 80 -> -A means print each packet in ascii 
+
+sudo tcpdump dst port 22  Example 3: Capture DNS queries # See which domains are being looked up sudo tcpdump port 53
+
+
+Analyse the capture in Wireshark:  scp -i "ScalerKeyValue.pem" ubuntu@ec2-13-214-137-40.ap-southeast-1.compute.amazonaws.com:/tmp/capture.pcap ~/capture.pcap
+
+
+
+
+
+
+
