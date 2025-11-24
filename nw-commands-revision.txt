@@ -1,0 +1,374 @@
+Devops-new-13
+
+# Simple lookup
+dig google.com
+
+# Output shows:
+# - Query time
+# - DNS server used
+# - IP address (A record)
+# - TTL (Time To Live)
+
+# Get just the IP address
+dig +short google.com
+
+# Query specific DNS server
+dig @8.8.8.8 google.com
+
+# Check specific record type
+dig google.com MX          # Mail servers
+dig google.com NS          # Name servers
+dig google.com TXT         # TXT records
+
+# Reverse DNS lookup
+dig -x 8.8.8.8
+
+# Trace DNS path
+dig +trace google.com
+
+———
+
+# Simple lookup
+nslookup google.com
+
+# Use specific DNS server
+nslookup google.com 8.8.8.8
+
+# Interactive mode
+nslookup
+> server 8.8.8.8
+> google.com
+> exit
+
+# Reverse lookup
+nslookup 8.8.8.8
+
+# Check mail servers
+nslookup -query=mx google.com
+
+# Check name servers
+nslookup -query=ns google.com
+
+———
+
+# Simple lookup
+host google.com
+
+# Verbose output
+host -v google.com
+
+# Check specific record
+host -t MX google.com
+host -t NS google.com
+host -t TXT google.com
+
+# Reverse lookup
+host 8.8.8.8
+
+# Query specific DNS server
+host google.com 8.8.8.8
+
+———
+
+# Show DNS settings
+resolvectl status
+
+# Show DNS for specific interface
+resolvectl status eth0
+
+# Lookup domain
+resolvectl query google.com
+
+# Flush DNS cache
+resolvectl flush-caches
+
+# Show DNS statistics
+resolvectl statistics
+
+# Show current DNS servers
+resolvectl dns
+
+Note: Transactions mean dns lookup 
+
+———
+
+# Test if web server is running
+telnet google.com 80
+
+# Test if SSH is accessible
+telnet server.com 22
+
+# Test database port
+telnet db.server.com 3306
+
+# Test custom application
+telnet api.server.com 8080
+
+# Exit telnet: Ctrl + ]  then type 'quit'
+
+———
+
+# Check if port is open (better than telnet)
+nc -zv google.com 80
+
+# Scan port range
+nc -zv google.com 80-443
+
+# Listen on port (simple server)
+nc -l 8080
+
+# Connect to server (simple client)
+nc localhost 8080
+
+# Send file over network
+# On receiver:
+nc -l 9999 > received_file.txt
+# On sender:
+nc receiver_ip 9999 < file.txt
+
+# Check UDP port
+nc -zvu server.com 53
+
+# Test HTTP request
+echo "GET / HTTP/1.0\r\n\r\n" | nc google.com 80
+
+————
+
+# Show all connections
+ss
+
+# Show listening ports
+ss -tuln
+
+# Show all TCP connections
+ss -ta
+
+# Show all UDP connections
+ss -ua
+
+# Show listening TCP ports with process names
+ss -tlnp
+
+# Show established connections
+ss -tun state established
+
+# Show connections to specific port
+ss -tan '( dport = :80 or sport = :80 )'
+
+# Show summary
+ss -s
+
+# Show connections with timer information
+ss -to
+
+———
+
+# Capture all traffic
+sudo tcpdump
+
+# Capture on specific interface
+sudo tcpdump -i eth0
+
+# Capture specific host
+sudo tcpdump host google.com
+
+# Capture specific port
+sudo tcpdump port 80
+
+# Capture and show in ASCII
+sudo tcpdump -A port 80
+
+# Save to file
+sudo tcpdump -w capture.pcap
+
+# Read from file
+sudo tcpdump -r capture.pcap
+
+# Capture HTTP traffic
+sudo tcpdump -i eth0 -A 'tcp port 80'
+
+# Capture first 100 packets
+sudo tcpdump -c 100
+
+# Capture with more detail
+sudo tcpdump -v port 443
+
+———
+
+# Monitor default interface
+sudo iftop
+
+# Monitor specific interface
+sudo iftop -i eth0
+
+# Show ports
+sudo iftop -P
+
+# Don't resolve hostnames (faster)
+sudo iftop -n
+
+# Show bandwidth in bytes
+sudo iftop -B
+
+# Filter by network
+sudo iftop -F 192.168.1.0/24
+
+———
+
+# Trace route to host
+traceroute google.com
+
+# Show IP addresses only
+traceroute -n google.com
+
+# Use ICMP instead of UDP
+traceroute -I google.com
+
+# Specify max hops
+traceroute -m 20 google.com
+
+# Fast trace (single query)
+traceroute -q 1 google.com
+
+———
+
+# Show all interfaces
+ifconfig
+
+# Show specific interface
+ifconfig eth0
+
+# Show only active interfaces
+ifconfig -a
+
+# Bring interface up
+sudo ifconfig eth0 up
+
+# Bring interface down
+sudo ifconfig eth0 down
+
+# Assign IP address
+sudo ifconfig eth0 192.168.1.100 netmask 255.255.255.0
+
+——
+
+# Enable firewall
+sudo ufw enable
+
+# Disable firewall
+sudo ufw disable
+
+# Check status
+sudo ufw status
+
+# Detailed status
+sudo ufw status verbose
+
+# Allow port
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Allow port range
+sudo ufw allow 6000:6100/tcp
+
+# Allow specific IP
+sudo ufw allow from 192.168.1.100
+
+# Allow IP to specific port
+sudo ufw allow from 192.168.1.100 to any port 22
+
+# Deny port
+sudo ufw deny 23/tcp
+
+# Delete rule
+sudo ufw delete allow 80/tcp
+
+# Reset firewall
+sudo ufw reset
+
+# Show numbered rules
+sudo ufw status numbered
+
+# Delete by number
+sudo ufw delete 2
+
+——
+
+# Simple GET request
+curl https://api.github.com
+
+# Save output to file
+curl -o output.html https://google.com
+
+# Download file (keep original name)
+curl -O https://example.com/file.zip
+
+# Follow redirects
+curl -L https://github.com
+
+# Show response headers
+curl -I https://google.com
+
+# POST request with data
+curl -X POST -d "name=John&email=john@example.com" https://api.example.com
+
+# POST JSON data
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"name":"John","email":"john@example.com"}' \
+  https://api.example.com/users
+
+# Add custom header
+curl -H "Authorization: Bearer TOKEN" https://api.example.com
+
+# Show request/response details
+curl -v https://google.com
+
+# Test with specific method
+curl -X DELETE https://api.example.com/users/123
+
+# Set timeout
+curl --max-time 10 https://slow-api.com
+
+# Save cookies
+curl -c cookies.txt https://example.com
+
+# Use saved cookies
+curl -b cookies.txt https://example.com
+
+——
+
+# Download file
+wget https://example.com/file.zip
+
+# Download with different name
+wget -O myfile.zip https://example.com/file.zip
+
+# Resume broken download
+wget -c https://example.com/largefile.iso
+
+# Download in background
+wget -b https://example.com/file.zip
+
+# Limit download speed
+wget --limit-rate=1m https://example.com/file.zip
+
+# Download multiple files
+wget -i urls.txt
+
+# Mirror website
+wget --mirror --convert-links --page-requisites \
+  https://example.com
+
+# Download with authentication
+wget --user=username --password=pass https://example.com/file
+
+# Retry on failure
+wget --tries=10 https://example.com/file.zip
+
+# Quiet mode
+wget -q https://example.com/file.zip
+
+# Check if URL exists (don't download)
+wget --spider https://example.com/file.zip
+
+———
