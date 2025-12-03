@@ -1,0 +1,680 @@
+
+1.
+——————————————————————————————————
+
+# Install MySQL on Ubuntu
+sudo apt update
+sudo apt install mysql-server
+
+# Start MySQL service
+sudo systemctl start mysql
+
+# Access MySQL command line
+sudo mysql
+
+*********
+
+-- Create database
+CREATE DATABASE my_store;
+
+-- Use the database
+USE my_store;
+
+-- Check current database
+SELECT DATABASE();
+
+************
+
+-- Create customers table
+CREATE TABLE customers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+************
+
+-- Show table structure
+DESCRIBE customers;
+
+-- Or
+SHOW COLUMNS FROM customers;
+
+**************
+
+-- Products table
+CREATE TABLE products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(200) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    stock INT DEFAULT 0
+);
+
+-- Customers table
+CREATE TABLE customers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    phone VARCHAR(20)
+);
+
+-- Orders table (links products and customers)
+CREATE TABLE orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+——————————————————————————————————
+
+
+2. Inserts 
+———————————————————————————————————————
+
+-- Must match exact order of columns in table
+INSERT INTO customers 
+VALUES (NULL, 'Bob Wilson', 'bob@example.com', NOW());
+
+-- More readable and safe
+INSERT INTO customers (name, email)
+VALUES ('Bob Wilson', 'bob@example.com');
+-- id and created_at filled automatically
+
+-- Add 3 customers at once
+INSERT INTO customers (name, email) VALUES
+    ('Alice Brown', 'alice@example.com'),
+    ('Bob Wilson', 'bob@example.com'),
+    ('Carol Davis', 'carol@example.com');
+
+-- Much faster than 3 separate INSERT statements!
+
+********
+
+-- Copy all premium customers to VIP table
+INSERT INTO vip_customers (name, email)
+SELECT name, email FROM customers
+WHERE total_spent > 10000;
+
+-- Insert products that need reordering
+INSERT INTO reorder_list (product_id, product_name)
+SELECT id, name FROM products
+WHERE stock < 10;
+
+***********
+
+-- This will fail if email already exists
+INSERT INTO customers (name, email)
+VALUES ('John Doe', 'john@example.com');
+-- ERROR: Duplicate entry 'john@example.com' for key 'email'
+
+-- If email exists, skip this insert (no error)
+INSERT IGNORE INTO customers (name, email)
+VALUES ('John Doe', 'john@example.com');
+-- No error, just silently skipped
+
+-- If email exists, update the name instead
+INSERT INTO customers (name, email)
+VALUES ('John Doe Updated', 'john@example.com')
+ON DUPLICATE KEY UPDATE name = 'John Doe Updated';
+
+-- If email is new: Insert new row
+-- If email exists: Update existing row's name
+
+
+
+———————————————————————————————————————
+
+3. Select
+———————————————————————————————————————
+
+-- Show me all customers
+SELECT * FROM customers;
+
+-- Show me customers named John
+SELECT * FROM customers WHERE name = 'John';
+
+-- Show me the 10 most expensive products
+SELECT * FROM products ORDER BY price DESC LIMIT 10;
+
+*********************
+
+-- Find customers named John
+SELECT * FROM customers WHERE name = 'John Doe';
+
+-- Find customers created after a date
+SELECT * FROM customers WHERE created_at > '2025-10-21';
+
+-- Find products cheaper than $50
+SELECT * FROM products WHERE price < 50;
+
+-- Exact match
+SELECT * FROM products WHERE name = 'Laptop';
+
+-- Greater than
+SELECT * FROM products WHERE price > 1000;
+
+-- Not equal
+SELECT * FROM customers WHERE name != 'John Doe';
+
+***********************
+
+-- Products between $100 and $500
+SELECT * FROM products 
+WHERE price >= 100 AND price <= 500;
+
+-- Customers named John created in October
+SELECT * FROM customers 
+WHERE name = 'John Doe' AND created_at >= '2025-10-01';
+
+-- Customers named John OR Jane
+SELECT * FROM customers 
+WHERE name = 'John Doe' OR name = 'Jane Smith';
+
+-- Products cheaper than $50 OR more expensive than $1000
+SELECT * FROM products 
+WHERE price < 50 OR price > 1000;
+
+-- Products: (cheap OR expensive) AND in stock
+SELECT * FROM products 
+WHERE (price < 50 OR price > 1000) AND stock > 0;
+
+***************************
+
+-- Find customers whose name starts with 'J'
+SELECT * FROM customers WHERE name LIKE 'J%';
+
+-- Find emails ending with 'gmail.com'
+SELECT * FROM customers WHERE email LIKE '%@gmail.com';
+
+-- Find products containing 'phone'
+SELECT * FROM products WHERE name LIKE '%phone%';
+
+% = Any number of characters
+_ = Exactly one character
+
+'J%'      → Matches: John, Jane, Jim, J
+'%son'    → Matches: Johnson, Anderson, Mason
+'%phone%' → Matches: iPhone, smartphone, phone case
+'J_n'     → Matches: Jan, Jon, Jin (but not John)
+
+-- Names starting with 'Bob'
+SELECT * FROM customers WHERE name LIKE 'Bob%';
+-- Matches: Bob, Bobby, Bob Jones
+
+-- Names ending with 'Smith'
+SELECT * FROM customers WHERE name LIKE '%Smith';
+-- Matches: John Smith, Jane Smith, Smith
+
+-- Names containing 'oh'
+SELECT * FROM customers WHERE name LIKE '%oh%';
+-- Matches: John, Johann, Mahoney
+
+*******************************
+
+-- Sort by name alphabetically
+SELECT * FROM customers ORDER BY name;
+
+-- Sort by price (lowest first)
+SELECT * FROM products ORDER BY price;
+
+-- Sort by price (highest first)
+SELECT * FROM products ORDER BY price DESC;
+
+-- Cheapest products first
+SELECT * FROM products ORDER BY price ASC;
+
+-- Most expensive products first
+SELECT * FROM products ORDER BY price DESC;
+
+-- Newest customers first
+SELECT * FROM customers ORDER BY created_at DESC;
+
+-- Alphabetically by name
+SELECT * FROM customers ORDER BY name ASC;
+
+-- Sort by price, then by name
+SELECT * FROM products ORDER BY price DESC, name ASC;
+
+-- First sorts by price (high to low)
+-- If prices are equal, sorts by name (A to Z)
+
+******************************
+
+-- Show only 5 customers
+SELECT * FROM customers LIMIT 5;
+
+-- Show 10 most expensive products
+SELECT * FROM products ORDER BY price DESC LIMIT 10;
+
+-- Show 3 newest customers
+SELECT * FROM customers ORDER BY created_at DESC LIMIT 3;
+
+-- First 10 results (page 1)
+SELECT * FROM customers LIMIT 10 OFFSET 0;
+
+-- Next 10 results (page 2)
+SELECT * FROM customers LIMIT 10 OFFSET 10;
+
+-- Next 10 results (page 3)
+SELECT * FROM customers LIMIT 10 OFFSET 20;
+
+******************************
+
+-- How many customers total?
+SELECT COUNT(*) FROM customers;
+
+-- How many customers named John?
+SELECT COUNT(*) FROM customers WHERE name LIKE 'John%';
+
+-- How many products in stock?
+SELECT COUNT(*) FROM products WHERE stock > 0;
+
+-- SUM: Add up all values
+SELECT SUM(price) FROM products;
+-- Total value of all products
+
+-- AVG: Calculate average
+SELECT AVG(price) FROM products;
+-- Average product price
+
+-- MAX: Find highest value
+SELECT MAX(price) FROM products;
+-- Most expensive product price
+
+-- MIN: Find lowest value
+SELECT MIN(price) FROM products;
+-- Cheapest product price
+
+***********************
+
+-- Count how many customers for each name
+SELECT name, COUNT(*) FROM customers GROUP BY name;
+
+-- Total sales per product
+SELECT product_id, SUM(quantity) as total_sold
+FROM orders
+GROUP BY product_id;
+
+-- Average order value per customer
+SELECT customer_id, AVG(amount) as avg_order
+FROM orders
+GROUP BY customer_id;
+
+-- Count orders per day
+SELECT DATE(order_date) as day, COUNT(*) as orders
+FROM orders
+GROUP BY DATE(order_date);
+
+*********************
+
+-- Customers with more than 5 orders
+SELECT customer_id, COUNT(*) as order_count
+FROM orders
+GROUP BY customer_id
+HAVING COUNT(*) > 5;
+
+-- Products sold more than 100 times
+SELECT product_id, SUM(quantity) as total_sold
+FROM orders
+GROUP BY product_id
+HAVING SUM(quantity) > 100;
+
+-- WHERE: Filter BEFORE grouping
+SELECT product_id, COUNT(*) 
+FROM orders 
+WHERE order_date >= '2025-01-01'  -- Filter individual rows
+GROUP BY product_id;
+
+-- HAVING: Filter AFTER grouping
+SELECT product_id, COUNT(*) 
+FROM orders 
+GROUP BY product_id
+HAVING COUNT(*) > 10;  -- Filter grouped results
+
+———————————————————————————————————————
+
+4.
+———————————————————————————————————————
+
+-- Find all orders by customer John
+SELECT * FROM orders 
+WHERE customer_id = (
+    SELECT id FROM customers WHERE name = 'John Doe'
+);
+
+-- Top 10 best-selling products
+SELECT product_id, SUM(quantity) as total_sold
+FROM orders
+GROUP BY product_id
+ORDER BY total_sold DESC
+LIMIT 10;
+
+-- Customers who haven't ordered in 6 months
+SELECT * FROM customers 
+WHERE id NOT IN (
+    SELECT DISTINCT customer_id FROM orders 
+    WHERE order_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+);
+
+-- Products running low on stock
+SELECT * FROM products 
+WHERE stock < 10 AND stock > 0
+ORDER BY stock ASC;
+
+-- Revenue by month
+SELECT 
+    DATE_FORMAT(order_date, '%Y-%m') as month,
+    SUM(amount) as revenue
+FROM orders
+GROUP BY DATE_FORMAT(order_date, '%Y-%m')
+ORDER BY month DESC;
+
+———————————————————————————————————————
+
+
+5.
+———————————————————————————————————————
+
+UPDATE table_name
+SET column1 = value1, column2 = value2
+WHERE condition;
+
+******
+
+-- ⚠️ DANGEROUS - Updates ALL rows!
+UPDATE customers SET email = 'same@example.com';
+
+-- ✓ SAFE - Updates only specific row
+UPDATE customers SET email = 'new@example.com' WHERE id = 1;
+
+-- Update John's email
+UPDATE customers 
+SET email = 'newemail@example.com'
+WHERE name = 'John Doe';
+
+-- Update John's email and phone
+UPDATE customers 
+SET email = 'newemail@example.com',
+    phone = '555-1234'
+WHERE name = 'John Doe';
+
+-- Update specific customer by ID
+UPDATE customers SET email = 'new@example.com' WHERE id = 5;
+
+-- Update customers in specific city
+UPDATE customers SET discount = 10 WHERE city = 'New York';
+
+-- Update old records
+UPDATE customers SET status = 'inactive' 
+WHERE last_login < '2024-01-01';
+
+*************
+
+-- Increase price by 10%
+UPDATE products 
+SET price = price * 1.10
+WHERE category = 'Electronics';
+
+-- Decrease stock when sold
+UPDATE products 
+SET stock = stock - 5
+WHERE id = 10;
+
+-- Increase customer points
+UPDATE customers 
+SET loyalty_points = loyalty_points + 100
+WHERE id = 5;
+
+**************
+
+-- Give 20% discount to all loyal customers
+UPDATE customers 
+SET discount = 20
+WHERE total_orders > 10;
+
+-- Mark old products as discontinued
+UPDATE products 
+SET status = 'discontinued'
+WHERE created_at < '2020-01-01';
+
+-- Reset all failed login attempts
+UPDATE users 
+SET failed_logins = 0
+WHERE failed_logins > 0;
+
+****************
+
+-- Update customer tier based on total spending
+UPDATE customers 
+SET tier = 'Gold'
+WHERE id IN (
+    SELECT customer_id FROM orders
+    GROUP BY customer_id
+    HAVING SUM(amount) > 10000
+);
+
+-- Update product popularity score
+UPDATE products 
+SET popularity = (
+    SELECT COUNT(*) FROM orders WHERE product_id = products.id
+);
+
+*****************
+
+-- Tiered discounts based on total orders
+UPDATE customers
+SET discount = CASE
+    WHEN total_orders >= 50 THEN 25
+    WHEN total_orders >= 20 THEN 15
+    WHEN total_orders >= 10 THEN 10
+    ELSE 5
+END;
+
+-- Adjust prices based on stock level
+UPDATE products
+SET price = CASE
+    WHEN stock < 10 THEN price * 1.20  -- Low stock: increase 20%
+    WHEN stock > 100 THEN price * 0.90 -- High stock: decrease 10%
+    ELSE price  -- Normal stock: no change
+END;
+
+***********
+
+Safe update practices:   -- Step 1: Preview what will be updated
+SELECT * FROM customers WHERE name = 'John Doe';
+
+-- Verify it's the right rows
+-- ✓ Looks good
+
+-- Step 2: Now safe to update
+UPDATE customers SET email = 'new@example.com' WHERE name = 'John Doe';
+
+-- Update only one row (safety net)
+UPDATE customers SET email = 'new@example.com' 
+WHERE name = 'John Doe' 
+LIMIT 1;
+
+-- Start transaction (temporary changes)
+BEGIN TRANSACTION;
+
+UPDATE customers SET email = 'new@example.com' WHERE id = 1;
+
+-- Check results
+SELECT * FROM customers WHERE id = 1;
+
+-- If good: COMMIT (make permanent)
+COMMIT;
+
+-- If bad: ROLLBACK (undo changes)
+ROLLBACK;
+
+-- Backup table
+CREATE TABLE customers_backup AS SELECT * FROM customers;
+
+-- Now safe to do risky update
+UPDATE customers SET discount = 0 WHERE status = 'inactive';
+
+-- If something goes wrong, restore from backup
+
+
+
+———————————————————————————————————————
+
+
+6.
+———————————————————————————————————————
+
+DELETE FROM table_name WHERE condition;
+
+***********
+
+-- ⚠️ CATASTROPHIC - Deletes ALL rows!
+DELETE FROM customers;
+
+-- ✓ SAFE - Deletes only specific row
+DELETE FROM customers WHERE id = 1;
+
+***********
+
+-- Delete inactive customers
+DELETE FROM customers WHERE status = 'inactive';
+
+-- Delete old orders
+DELETE FROM orders WHERE order_date < '2020-01-01';
+
+-- Delete products out of stock
+DELETE FROM products WHERE stock = 0 AND discontinued = TRUE;
+
+-- Delete spam comments
+DELETE FROM comments WHERE is_spam = TRUE;
+
+************
+
+-- Delete all customers from specific city
+DELETE FROM customers WHERE city = 'Springfield';
+
+-- Delete all expired sessions
+DELETE FROM sessions WHERE expires_at < NOW();
+
+-- Delete all failed payment attempts
+DELETE FROM payments WHERE status = 'failed' AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);  **************
+DELETE with LIMIT (Safety Net)
+Limit how many rows can be deleted:
+
+
+-- Delete only 1 row (safest)
+DELETE FROM customers WHERE email = 'spam@example.com' LIMIT 1;
+
+-- Delete oldest 100 logs
+DELETE FROM logs ORDER BY created_at ASC LIMIT 100;
+
+-- Delete 10 expired coupons
+DELETE FROM coupons WHERE expires_at < NOW() LIMIT 10;
+
+Without LIMIT:
+Typo in WHERE clause → Deletes 10,000 rows accidentally
+
+With LIMIT 1:
+Same typo → Deletes only 1 row (still bad, but recoverable)
+
+-- Delete customers who never ordered
+DELETE FROM customers 
+WHERE id NOT IN (SELECT DISTINCT customer_id FROM orders);
+
+-- Delete products that were never sold
+DELETE FROM products 
+WHERE id NOT IN (SELECT DISTINCT product_id FROM orders);
+
+-- Delete users who haven't logged in for 2 years
+DELETE FROM users 
+WHERE id IN (
+    SELECT id FROM users 
+    WHERE last_login < DATE_SUB(NOW(), INTERVAL 2 YEAR)
+);
+
+*********
+
+-- Method 1: DELETE (slow, can rollback)
+DELETE FROM temp_table;
+
+-- Method 2: TRUNCATE (fast, can't rollback)
+TRUNCATE TABLE temp_table;
+
+DELETE FROM table:
+✓ Can use WHERE clause
+✓ Can rollback in transaction
+✓ Triggers fire for each row
+✗ Slow for large tables
+✗ Doesn't reset AUTO_INCREMENT
+
+TRUNCATE TABLE:
+✗ No WHERE clause (all or nothing)
+✗ Can't rollback
+✗ Triggers don't fire
+✓ Very fast
+✓ Resets AUTO_INCREMENT counter
+
+
+***********
+
+Safe delete practices:   -- Step 1: Preview what will be deleted
+SELECT * FROM customers WHERE status = 'inactive';
+
+-- Review results carefully
+-- Count: 15 rows
+
+-- Step 2: If correct, change SELECT to DELETE
+DELETE FROM customers WHERE status = 'inactive';
+
+-- Check how many rows will be affected
+SELECT COUNT(*) FROM customers WHERE city = 'Springfield';
+-- Result: 47 rows
+
+-- If number looks right, delete
+DELETE FROM customers WHERE city = 'Springfield';
+
+-- Start transaction
+BEGIN TRANSACTION;
+
+DELETE FROM customers WHERE status = 'inactive';
+
+-- Check what was deleted
+SELECT * FROM customers WHERE status = 'inactive';
+-- Result: 0 rows (good!)
+
+-- Check total remaining
+SELECT COUNT(*) FROM customers;
+-- Result: 85,953 (looks right!)
+
+-- Make it permanent
+COMMIT;
+
+-- If something wrong: ROLLBACK instead
+
+-- Backup table
+CREATE TABLE customers_backup AS SELECT * FROM customers;
+
+-- Now safe to delete
+DELETE FROM customers WHERE last_order < '2020-01-01';
+
+-- If mistake, restore from backup
+-- INSERT INTO customers SELECT * FROM customers_backup;
+
+-- Instead of DELETE, just mark as deleted
+ALTER TABLE customers ADD COLUMN deleted_at TIMESTAMP NULL;
+
+-- "Delete" customer (actually just marking)
+UPDATE customers SET deleted_at = NOW() WHERE id = 5;
+
+-- Query only active customers
+SELECT * FROM customers WHERE deleted_at IS NULL;
+
+-- Can restore if needed!
+UPDATE customers SET deleted_at = NULL WHERE id = 5;
+
+———————————————————————————————————————
