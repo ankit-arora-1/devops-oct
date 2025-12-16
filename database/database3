@@ -1,0 +1,157 @@
+Devops-new-17 (Database 3)
+
+
+
+Master Slave replication:  ———————————————
+
+master:
+ [mysqld]
+server-id=1
+log_bin=mysql-bin -> enable binary logs so that slave can update data on its side 
+bind-address=0.0.0.0 -> network interface on master side on which slave can connect (0.0.0.0 means any network interface)
+
+CREATE USER 'replicator'@'%' IDENTIFIED WITH mysql_native_password BY 'replicator';
+GRANT REPLICATION SLAVE ON *.* TO 'replicator'@'%'; 
+FLUSH PRIVILEGES; -> Reload privilege tables from disk into memory. 
+
+FLUSH TABLES WITH READ LOCK;
+SHOW MASTER STATUS;
+UNLOCK TABLES;
+
+Slave:
+[mysqld]
+server-id=2
+
+CHANGE MASTER TO
+  MASTER_HOST='source_ip',
+  MASTER_USER='replicator',
+  MASTER_PASSWORD='password',
+  MASTER_LOG_FILE='mysql-bin.000001',
+  MASTER_LOG_POS=1234,
+  MASTER_SSL=0;
+START SLAVE;
+
+++++++++++++++++++++++++++++++++++++++++
++ With SSL (not required to run this): 
++ [mysqld] —> on master 
++ log_bin = mysql-bin
++ server-id = 1
++ bind-address = 0.0.0.0
++ ssl-ca = /var/lib/mysql/ca.pem
++ ssl-cert = /var/lib/mysql/server-cert.pem
++ ssl-key = /var/lib/mysql/server-key.pem
++ 
++ CHANGE MASTER TO —-> on slave
++  MASTER_HOST='<master_ip>',
++   MASTER_USER='replicator',
++  MASTER_PASSWORD='replicator',
++   MASTER_LOG_FILE='mysql-bin.000001',
++   MASTER_LOG_POS=1234,
++   MASTER_SSL=1,
++  MASTER_SSL_CA='/var/lib/mysql/ca.pem',
++   MASTER_SSL_CERT='/var/lib/mysql/client-cert.pem',
++   MASTER_SSL_KEY='/var/lib/mysql/client-key.pem';
++ START SLAVE;
+
+
+
+Semi synchronous:
+——————————
+
+Master:
+[mysqld]
+server-id=1
+log_bin=mysql-bin
+bind-address=0.0.0.0
+
+plugin-load = semisync_master.so
+rpl_semi_sync_master_enabled = 1
+
+
+-- Create replication user (without SSL)
+CREATE USER 'replicator'@'%' IDENTIFIED WITH mysql_native_password BY 'replicator';
+GRANT REPLICATION SLAVE ON *.* TO 'replicator'@'%';
+FLUSH PRIVILEGES;
+
+-- Get master status
+FLUSH TABLES WITH READ LOCK;
+SHOW MASTER STATUS;
+
+Slave:
+[mysqld]
+server-id=2
+plugin-load = semisync_slave.so
+rpl_semi_sync_slave_enabled = 1
+
+-- Configure master connection (no SSL)
+CHANGE MASTER TO
+  MASTER_HOST='<master_ip>',
+  MASTER_USER='replicator',
+  MASTER_PASSWORD='replicator',
+  MASTER_LOG_FILE='mysql-bin.000001',    -- Use value from SHOW MASTER STATUS
+  MASTER_LOG_POS=1234;                   -- Use value from SHOW MASTER STATUS
+
+-- Start replication
+START SLAVE;
+
+-- Check status
+SHOW SLAVE STATUS\G
+
+
+Group Replication:
+——————————
+Run on each node
+
+[mysqld]
+
+server-id = 1                    
+bind-address = 0.0.0.0  
+
+
+gtid_mode = ON        
+enforce_gtid_consistency = ON    
+
+log_bin = mysql-bin           
+log_slave_updates = ON         
+binlog_format = ROW           
+binlog_checksum = NONE        
+
+# Group Replication Plugin and Settings
+plugin-load-add = group_replication.so                    
+group_replication_group_name = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"  
+group_replication_start_on_boot = OFF                   
+group_replication_local_address = "172.31.21.114:33061"  
+group_replication_group_seeds = "172.31.21.114:33061,172.31.18.165:33061,172.31.20.149:33061"  
+
+
+group_replication_single_primary_mode = OFF              
+group_replication_enforce_update_everywhere_checks = ON  
+
+
+-- Create replication user for group communication
+CREATE USER 'gr_user'@'%' IDENTIFIED WITH mysql_native_password BY 'gr_password';
+FLUSH PRIVILEGES;
+
+-- Configure the group replication recovery channel
+CHANGE MASTER TO MASTER_USER='gr_user', MASTER_PASSWORD='gr_password' FOR CHANNEL 'group_replication_recovery';
+
+Run on node 1:   -- Bootstrap the group (only on first node!)
+SET GLOBAL group_replication_bootstrap_group=ON;
+START GROUP_REPLICATION;
+SET GLOBAL group_replication_bootstrap_group=OFF;
+
+-- Check status
+SELECT * FROM performance_schema.replication_group_members;
+
+
+Run on node 2 and 3:  -- Join the existing group
+START GROUP_REPLICATION;
+
+-- Check status  
+SELECT * FROM performance_schema.replication_group_members;
+
+
+
+
+
+
