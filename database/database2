@@ -1,0 +1,68 @@
+Devops-new-16 (Database 2)
+
+1.
+————————————————————————————————————————————————————
+
+create index idx_name on products(name);
+create index idx_name on products(stock);
+
+show indexes on products;
+drop index idx_stock from products;
+
+————————————————————————————————————————————————————
+
+2.
+————————————————————————————————————————————————————
+
+create index idx_price_stock on products(price,stock);
+explain select * from products where price=599.99 AND stock=10;
+
+drop index idx_price, idx_stock on products;
+drop index idx_stock on products;
+explain select stock from products where price=559.99 AND stock=10;
+
+————————————————————————————————————————————————————
+
+3.
+————————————————————————————————————————————————————
+
+sudo mysqldump my_store > backup.sql
+
+mysql> drop database my_store;
+
+sudo mysql my_store < backup.sql
+
+————————————————————————————————————————————————————
+
+
+4.
+————————————————————————————————————————————————————
+
+SHOW VARIABLES LIKE 'log_error';
+
+SHOW VARIABLES LIKE 'general_log';
+set global general_log = 1;
+SHOW VARIABLES LIKE 'general_log_file;
+
+————————————————————————————————————————————————————
+
+5.
+————————————————————————————————————————————————————
+
+-- Edit my.cnf
+[mysqld]
+log_bin = /var/log/mysql/mysql-bin.log
+expire_logs_days = 7
+max_binlog_size = 100M
+
+# Restore full backup
+mysql -u root -p my_database < backup_10am.sql
+
+# Find position of bad query
+mysqlbinlog mysql-bin.000003 | grep "customers"
+# Found at position: 12345678
+
+# Replay log up to just before bad query
+mysqlbinlog --stop-position=12345677 mysql-bin.000003 | mysql -u root -p my_database
+
+————————————————————————————————————————————————————
