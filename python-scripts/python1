@@ -1,0 +1,486 @@
+
+
+1. OS, sys, platform
+————————————————————————————————————————————————————————————————————————
+
+import os
+
+# Current directory
+print(os.getcwd())                    # /home/user/scripts
+
+# Change directory
+os.chdir('/var/log')
+
+# List directory
+files = os.listdir('.')               # ['syslog', 'auth.log']
+
+# Environment variables
+home = os.getenv('HOME')
+user = os.getenv('USER')
+os.environ['MY_VAR'] = 'value'
+
+# Path checks
+os.path.exists('/var/log/syslog')    # True/False
+os.path.isfile(path)                 # Is file?
+os.path.isdir(path)                  # Is directory?
+
+************
+
+import sys
+
+# Python version and platform
+print(sys.version)                    # 3.11.0
+print(sys.platform)                   # linux, darwin, win32
+
+# Command-line arguments
+# Script: python myscript.py arg1 arg2
+print(sys.argv)                       # ['myscript.py', 'arg1', 'arg2']
+
+# Exit with status code
+sys.exit(0)                          # Success
+sys.exit(1)                          # Error
+
+# Standard streams
+sys.stdout.write("Normal output\n")
+sys.stderr.write("Error output\n")
+
+***************
+
+import platform
+
+# Operating system
+print(platform.system())              # Linux, Darwin, Windows
+print(platform.release())             # 5.15.0-58-generic
+print(platform.machine())             # x86_64, arm64
+
+# Python info
+print(platform.python_version())      # 3.11.0
+print(platform.node())                # hostname
+
+# Complete info
+print(platform.uname())
+# uname_result(system='Linux', node='server1', release='5.15.0')
+
+————————————————————————————————————————————————————————————————————————
+
+2. Pathlib -> Modern version of “os.path” module 
+————————————————————————————————————————————————————————————————————————
+
+from pathlib import Path
+
+# Create path
+path = Path('/var/log/syslog')
+
+# Components
+print(path.parent)                    # /var/log
+print(path.name)                      # syslog
+print(path.suffix)                    # .log
+print(path.stem)                      # syslog (no extension)
+
+# Join paths (using / operator)
+base = Path('/var/log')
+full = base / 'apache2' / 'access.log' -> “base” is not a string here. “/“ is operator overloading. Correct symbol will be chosen based on the OS
+
+# Special directories
+current = Path.cwd()                  # Current directory
+home = Path.home()                    # Home directory
+
+# Resolve paths
+path = Path('~/logs/../data')
+resolved = path.expanduser().resolve()  # /home/user/data
+
+***********
+
+from pathlib import Path
+
+path = Path('/var/log/syslog')
+
+# Checks
+path.exists()                         # True/False
+path.is_file()                        # Is regular file?
+path.is_dir()                         # Is directory?
+path.is_symlink()                     # Is symbolic link?
+
+# File info
+if path.exists():
+    stat = path.stat()
+    size_mb = stat.st_size / (1024 * 1024)
+    print(f"Size: {size_mb:.2f} MB")
+
+# Create/remove
+log_dir = Path('/var/log/myapp')
+log_dir.mkdir(parents=True, exist_ok=True)  # Create with parents
+
+log_file = Path('/var/log/app.log')
+log_file.touch()                      # Create empty file
+log_file.unlink(missing_ok=True)      # Delete file
+
+**********
+
+from pathlib import Path
+
+log = Path('/var/log/app.log')
+
+# Read entire file
+content = log.read_text()
+
+# Write to file
+log.write_text("New content\n")
+
+# Append (traditional way)
+with log.open('a') as f:
+    f.write("Appended line\n")
+
+# Read line by line (memory efficient)
+with log.open() as f:
+    for line in f:
+        print(line.strip())
+
+***********
+
+from pathlib import Path
+
+log_dir = Path('/var/log')
+
+# Simple iteration
+for item in log_dir.iterdir():
+    print(item)
+
+# Filter files
+for file in log_dir.iterdir():
+    if file.is_file():
+        print(f"File: {file.name}")
+
+# Glob patterns
+for log in log_dir.glob('*.log'):     # Current level
+    print(log)
+
+for log in log_dir.rglob('*.log'):    # Recursive
+    print(log)
+
+# Complex filtering
+for item in log_dir.rglob('*'):
+    if item.suffix == '.log' and item.stat().st_size > 1000000:
+        print(f"Large log: {item}")
+
+*************
+Script to find large files:
+
+#!/usr/bin/env python3
+from pathlib import Path
+import datetime
+
+def find_large_files(directory, size_mb=100):
+    path = Path(directory)
+    size_bytes = size_mb * 1024 * 1024
+    large_files = []
+    
+    for file in path.rglob('*'):
+        if file.is_file() and file.stat().st_size > size_bytes:
+            mtime = datetime.datetime.fromtimestamp(file.stat().st_mtime)
+            large_files.append({
+                'path': str(file),
+                'size_mb': file.stat().st_size / (1024 * 1024),
+                'modified': mtime.strftime('%Y-%m-%d %H:%M:%S')
+            })
+    
+    return sorted(large_files, key=lambda x: x['size_mb'], reverse=True)
+
+def print_report(files):
+    if not files:
+        print("No large files found.")
+        return
+    
+    print(f"\n{'Size (MB)':<12} {'Modified':<20} {'Path'}")
+    print("=" * 80)
+    for f in files:
+        print(f"{f['size_mb']:>10.2f}  {f['modified']:<20} {f['path']}")
+    print(f"\nTotal: {sum(f['size_mb'] for f in files):.2f} MB")
+
+if __name__ == '__main__':
+    import sys
+    directory = sys.argv[1] if len(sys.argv) > 1 else '/var/log'
+    files = find_large_files(directory, 100)
+    print_report(files)
+
+————————————————————————————————————————————————————————————————————————
+
+3.
+————————————————————————————————————————————————————————————————————————
+
+import subprocess
+
+# Simple command
+result = subprocess.run(['ls', '-la']) -> prints the output of ls -la (result just stores the object and return code) 
+
+# Capture output
+result = subprocess.run(['ls', '-la'], capture_output=True, text=True) -> capture output means pipe this to result.stdout
+print(result.stdout)
+print(result.returncode)              # 0 = success
+
+# Handle errors
+result = subprocess.run(['ls', '/nonexistent'], capture_output=True, text=True)
+if result.returncode != 0:
+    print(f"Error: {result.stderr}")
+
+# Raise exception on error
+try:
+    subprocess.run(['ls', '/nonexistent'], check=True, capture_output=True) -> "check”: If the command exits with a non-zero exit code, Python will raise an exception instead of returning normally.
+except subprocess.CalledProcessError as e:
+    print(f"Failed with code {e.returncode}")
+
+# Shell command (use cautiously!)
+result = subprocess.run('ls -la | grep log', shell=True, 
+                       capture_output=True, text=True)
+
+# Timeout
+try:
+    subprocess.run(['sleep', '10'], timeout=5)
+except subprocess.TimeoutExpired:
+    print("Timed out!")
+
+*********
+
+import subprocess
+
+# Run in specific directory
+result = subprocess.run(['ls', '-la'], cwd='/var/log',
+                       capture_output=True, text=True) -> Before starting the process, set the current working dir to “/var/log”
+
+# Set environment
+env = {'PATH': '/usr/bin', 'MY_VAR': 'value'}
+result = subprocess.run(['printenv'], env=env, 
+                       capture_output=True, text=True)
+
+# Pipe input
+result = subprocess.run(['grep', 'error'],
+                       input='line1\nerror line\nline3\n',
+                       capture_output=True, text=True) -> input means send the string as a stdin to the process 
+print(result.stdout)                  # "error line"
+
+********** System health check script: 
+ #!/usr/bin/env python3
+import subprocess
+
+def run_command(cmd, description):
+    print(f"\n{description}")
+    print("=" * 50)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=10, check=True) -> 
+        print(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e.stderr}")
+    except subprocess.TimeoutExpired:
+        print("Command timed out!")
+
+def health_check():
+    checks = [
+        (['uptime'], "System Uptime"),
+        (['free', '-h'], "Memory Usage"),
+        (['df', '-h'], "Disk Usage"),
+        (['ps', 'aux', '--sort=-%cpu'], "Top CPU Processes"),
+    ]
+    
+    print("SYSTEM HEALTH CHECK")
+    print("=" * 50)
+    for cmd, desc in checks:
+        run_command(cmd, desc)
+
+if __name__ == '__main__':
+    health_check()
+
+————————————————————————————————————————————————————————————————————————
+
+
+4. System monitoring
+————————————————————————————————————————————————————————————————————————
+
+#!/usr/bin/env python3
+import psutil
+import time
+
+def get_cpu_info():
+    return {
+        'total_percent': psutil.cpu_percent(interval=1),
+        'per_core': psutil.cpu_percent(interval=1, percpu=True),
+        'physical_cores': psutil.cpu_count(logical=False),
+        'logical_cores': psutil.cpu_count(logical=True)
+    }
+
+def print_cpu_info(info):
+    print("\nCPU USAGE")
+    print("=" * 50)
+    print(f"Total: {info['total_percent']}%")
+    print(f"Cores: {info['physical_cores']} physical, {info['logical_cores']} logical")
+    
+    print("\nPer-Core:")
+    for i, percent in enumerate(info['per_core']):
+        bar = '#' * int(percent / 2)
+        print(f"Core {i:2d}: [{bar:<50}] {percent:5.1f}%")
+    
+    if info['total_percent'] > 80:
+        print("\n⚠️  WARNING: High CPU usage!")
+
+def monitor_cpu(duration=60, interval=5):
+    print(f"Monitoring CPU for {duration} seconds...")
+    start = time.time()
+    while time.time() - start < duration:
+        print_cpu_info(get_cpu_info())
+        time.sleep(interval)
+
+if __name__ == '__main__':
+    monitor_cpu()
+
+
+*************
+
+#!/usr/bin/env python3
+import psutil
+
+def bytes_to_human(b):
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if b < 1024.0:
+            return f"{b:.2f} {unit}"
+        b /= 1024.0
+
+def get_memory_info():
+    mem = psutil.virtual_memory()
+    swap = psutil.swap_memory()
+    return {
+        'total': mem.total,
+        'available': mem.available,
+        'used': mem.used,
+        'percent': mem.percent,
+        'swap_total': swap.total,
+        'swap_used': swap.used,
+        'swap_percent': swap.percent
+    }
+
+def print_memory_info(info):
+    print("\nMEMORY USAGE")
+    print("=" * 50)
+    print(f"Total:     {bytes_to_human(info['total'])}")
+    print(f"Used:      {bytes_to_human(info['used'])}")
+    print(f"Available: {bytes_to_human(info['available'])}")
+    print(f"Percent:   {info['percent']}%")
+    
+    bar_len = 50
+    used_bar = int(info['percent'] / 100 * bar_len)
+    print(f"[{'#' * used_bar}{'-' * (bar_len - used_bar)}] {info['percent']}%")
+    
+    if info['percent'] > 90:
+        print("⚠️  CRITICAL: Memory > 90%!")
+    elif info['percent'] > 80:
+        print("⚠️  WARNING: Memory > 80%!")
+
+if __name__ == '__main__':
+    print_memory_info(get_memory_info())
+
+*********
+
+#!/usr/bin/env python3
+import psutil
+
+def bytes_to_human(b):
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if b < 1024.0:
+            return f"{b:.2f} {unit}"
+        b /= 1024.0
+
+def get_disk_info():
+    partitions = []
+    for part in psutil.disk_partitions():
+        try:
+            usage = psutil.disk_usage(part.mountpoint)
+            partitions.append({
+                'mountpoint': part.mountpoint,
+                'total': usage.total,
+                'used': usage.used,
+                'free': usage.free,
+                'percent': usage.percent
+            })
+        except PermissionError:
+            continue
+    return partitions
+
+def print_disk_info(partitions):
+    print("\nDISK USAGE")
+    print("=" * 70)
+    print(f"{'Mount':<15} {'Total':<10} {'Used':<10} {'Free':<10} {'Use%':<6}")
+    print("-" * 70)
+    
+    for p in partitions:
+        print(f"{p['mountpoint']:<15} "
+              f"{bytes_to_human(p['total']):<10} "
+              f"{bytes_to_human(p['used']):<10} "
+              f"{bytes_to_human(p['free']):<10} "
+              f"{p['percent']:<6.1f}%")
+        
+        if p['percent'] > 90:
+            print(f"  ⚠️  CRITICAL: {p['mountpoint']} at {p['percent']}%!")
+
+if __name__ == '__main__':
+    print_disk_info(get_disk_info())
+
+*******  DB maintenance script:   #!/usr/bin/env python3
+import subprocess, gzip, shutil
+from pathlib import Path
+import datetime
+
+def backup_database(db_name, backup_dir, user='root', password=''):
+    backup_path = Path(backup_dir)
+    backup_path.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{db_name}_{timestamp}.sql"
+    filepath = backup_path / filename
+    
+    print(f"Backing up {db_name}...")
+    
+    cmd = ['mysqldump', f'-u{user}', f'-p{password}', db_name]
+    
+    try:
+        with open(filepath, 'w') as f:
+            subprocess.run(cmd, stdout=f, check=True, stderr=subprocess.PIPE)
+        
+        # Compress
+        with open(filepath, 'rb') as f_in:
+            with gzip.open(f"{filepath}.gz", 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        
+        filepath.unlink()  # Remove uncompressed
+        
+        size = Path(f"{filepath}.gz").stat().st_size
+        print(f"  Complete: {size / (1024**2):.2f} MB")
+        return f"{filepath}.gz"
+    except subprocess.CalledProcessError as e:
+        print(f"  Error: {e.stderr.decode()}")
+        return None
+
+def cleanup_old_backups(backup_dir, days=7):
+    backup_path = Path(backup_dir)
+    cutoff = datetime.datetime.now() - datetime.timedelta(days=days)
+    cutoff_ts = cutoff.timestamp()
+    
+    print(f"\nCleaning backups older than {days} days...")
+    
+    count = 0
+    for backup in backup_path.glob('*.sql.gz'):
+        if backup.stat().st_mtime < cutoff_ts:
+            backup.unlink()
+            print(f"  Deleted: {backup.name}")
+            count += 1
+    
+    print(f"  Removed {count} old backups")
+
+if __name__ == '__main__':
+    DATABASES = ['myapp_db', 'analytics_db']
+    BACKUP_DIR = '/backups/mysql'
+    
+    for db in DATABASES:
+        backup_database(db, BACKUP_DIR, user='backup_user', password='pass')
+    
+    cleanup_old_backups(BACKUP_DIR, days=7)
+
+————————————————————————————————————————————————————————————————————————
