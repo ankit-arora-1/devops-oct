@@ -1,0 +1,408 @@
+Devops-new-18 (Database 4)
+
+1.
+————————————————————————————————————————————————————————————————
+
+-- Check current max connections
+SHOW VARIABLES LIKE 'max_connections';
+-- Default: 151
+
+-- Check current connections in use
+SHOW STATUS LIKE 'Threads_connected';
+-- Current: 85
+
+-- View all connections
+SHOW PROCESSLIST;
+
+-- Set max connections (requires restart)
+SET GLOBAL max_connections = 500;
+
+SELECT (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME='Threads_connected') / (SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='max_connections') * 100 AS connection_usage_percent;
+
+VARIABLES = configuration
+STATUS = runtime statistics
+
+————————————————————————————————————————————————————————————————
+
+2.
+————————————————————————————————————————————————————————————————
+
+from sqlalchemy import create_engine
+from sqlalchemy.pool import QueuePool
+
+# Create engine with connection pooling
+engine = create_engine(
+    'mysql://user:password@localhost/mydb',
+    poolclass=QueuePool,
+    pool_size=10,           # Keep 10 connections
+    max_overflow=20,        # Allow 20 extra if needed (30 total max)
+    pool_timeout=30,        # Wait 30s for connection
+    pool_recycle=3600,      # Recycle connections after 1 hour
+    pool_pre_ping=True      # Verify connection alive before using
+)
+
+# Use connection from pool
+def get_user(user_id):
+    with engine.connect() as conn:
+        result = conn.execute(f"SELECT * FROM users WHERE id = {user_id}")
+        return result.fetchone()
+    # Connection automatically returned to pool
+
+**************
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+HikariConfig config = new HikariConfig();
+config.setJdbcUrl("jdbc:mysql://localhost:3306/mydb");
+config.setUsername("user");
+config.setPassword("password");
+config.setMinimumIdle(5);           // Minimum connections
+config.setMaximumPoolSize(50);      // Maximum connections
+config.setConnectionTimeout(30000); // 30 seconds
+config.setIdleTimeout(600000);      // 10 minutes
+config.setMaxLifetime(1800000);     // 30 minutes
+
+HikariDataSource dataSource = new HikariDataSource(config);
+
+// Use connection
+Connection conn = dataSource.getConnection();
+// ... use connection ...
+conn.close(); // Returns to pool (doesn't actually close)
+
+*******************
+
+const mysql = require('mysql2');
+
+const pool = mysql.createPool({
+  host: 'localhost',
+  user: 'user',
+  password: 'password',
+  database: 'mydb',
+  waitForConnections: true,
+  connectionLimit: 10,      // Max connections
+  queueLimit: 0,            // Unlimited queue
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
+});
+
+// Use connection from pool
+pool.query('SELECT * FROM users WHERE id = ?', [userId], (err, results) => {
+  // Connection automatically returned to pool
+});
+
+————————————————————————————————————————————————————————————————
+
+3.
+————————————————————————————————————————————————————————————————
+
+#!/bin/bash
+# monitor_connections.sh
+
+CURRENT=$(mysql -e "SHOW STATUS LIKE 'Threads_connected';" | awk 'NR==2 {print $2}')
+MAX=$(mysql -e "SHOW VARIABLES LIKE 'max_connections';" | awk 'NR==2 {print $2}')
+PERCENT=$((CURRENT * 100 / MAX))
+
+echo "Connections: $CURRENT / $MAX ($PERCENT%)"
+
+if [ $PERCENT -gt 80 ]; then
+    echo "WARNING: Connection usage at $PERCENT%"
+    echo "Connection usage: $PERCENT%" | mail -s "WARNING" admin@company.com
+fi
+
+if [ $PERCENT -gt 95 ]; then
+    echo "CRITICAL: Connection usage at $PERCENT%"
+    echo "URGENT: Connection usage: $PERCENT%" | mail -s "CRITICAL" admin@company.com
+fi
+
+————————————————————————————————————————————————————————————————
+
+4.
+————————————————————————————————————————————————————————————————
+
+-- Slow queries count
+SHOW STATUS LIKE 'Slow_queries';
+
+-- Queries per second
+SHOW STATUS LIKE 'Questions';
+
+-- Active connections
+SHOW STATUS LIKE 'Threads_connected';
+
+-- Failed connections
+SHOW STATUS LIKE 'Aborted_connects';
+
+-- Connection errors
+SHOW STATUS LIKE 'Connection_errors%';
+
+Connection_errors_accept = MySQL tried to accept a new network connection, but the accept operation failed.
+Connection_errors_internal = MySQL internally failed after a TCP connection was accepted but before the session was fully created.
+Connection_errors_peer_address = MySQL could not obtain the client's IP address even though the TCP connection reached the server.
+Connection_errors_select = This means MySQL had problems using the OS function select() while trying to check for new incoming connections.
+select() is an operating-system function that watches multiple things at once — for example:
+* "Has a new client attempted to connect?"
+* "Is there data available to read?"
+* "Is a socket ready to be written to?"
+
+Connection_errors_tcpwrap = If MySQL attempts to check access rules via TCP Wrappers (old way of access control) and fails → this increases.
+
+
+-- InnoDB buffer pool usage
+SHOW STATUS LIKE 'Innodb_buffer_pool_pages%';
+Innodb_buffer_pool_pages_total = Total number of pages in the buffer pool.
+Innodb_buffer_pool_pages_free = These are pages that are empty and not storing anything yet
+Innodb_buffer_pool_pages_data = These pages currently hold table data or index data.
+Innodb_buffer_pool_pages_dirty = A dirty page = a page in RAM that’s been modified but not yet written to disk. -> high value is bad
+
+
+
+-- Table cache usage
+SHOW STATUS LIKE 'Open_tables'; -> number of tables that MySQL has currently opened and cached.
+SHOW VARIABLES LIKE 'table_open_cache'; -> maximum number of table handlers MySQL is allowed to keep open (cached) at the same time.
+
+-- Temporary tables
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+SHOW STATUS LIKE 'Created_tmp_tables';
+
+-- Table locks
+SHOW STATUS LIKE 'Table_locks_waited'; -> how many times a query had to WAIT because another query was already locking a table.
+SHOW STATUS LIKE 'Table_locks_immediate'; -> how many times MySQL granted a table lock instantly without waiting.
+
+-- InnoDB row locks
+SHOW STATUS LIKE 'Innodb_row_lock_waits' -> tells you how many times a query had to WAIT because another transaction was locking a row in an InnoDB table.
+SHOW STATUS LIKE 'Innodb_row_lock_time_avg'; -> shows you the average time (in milliseconds) that InnoDB queries had to wait for a row lock before they could proceed.
+
+*********
+
+-- Enable logging
+SET GLOBAL slow_query_log = 'ON';
+SET GLOBAL long_query_time = 1;  -- Log queries > 1 second
+SET GLOBAL slow_query_log_file = '/var/log/mysql/slow.log';
+
+-- Check settings
+SHOW VARIABLES LIKE 'slow_query%';
+SHOW VARIABLES LIKE 'long_query_time';
+
+********
+
+Top 10 slowest queries:   -- Top 10 slowest queries
+SELECT 
+    DIGEST_TEXT,
+    COUNT_STAR as exec_count,
+    AVG_TIMER_WAIT/1000000000000 as avg_ms,
+    MAX_TIMER_WAIT/1000000000000 as max_ms
+FROM performance_schema.events_statements_summary_by_digest
+ORDER BY AVG_TIMER_WAIT DESC
+LIMIT 10;
+
+events_statements_summary_by_digest -> It is a table inside performance_schema that stores aggregated statistics about SQL queries that were executed on the server.
+
+*********  Things to monitor for DB:  1. Queries Per Second (QPS)
+   Normal: 100-1000 QPS
+   Alert if: Sudden drop or spike
+
+2. Connection Usage
+   Normal: < 70%
+   Warning: 70-85%
+   Critical: > 85%
+
+3. Slow Query Count
+   Normal: < 10/minute
+   Alert if: > 50/minute
+
+4. InnoDB Buffer Pool Hit Rate
+   Normal: > 99%
+   Alert if: < 95%
+
+5. Replication Lag
+   Normal: 0-2 seconds
+   Alert if: > 10 seconds
+
+6. CPU Usage
+   Normal: < 70%
+   Warning: 70-85%
+   Critical: > 85%
+
+7. Disk I/O Wait
+   Normal: < 10%
+   Alert if: > 20%
+
+8. Deadlock Count
+   Normal: 0
+   Alert if: > 5/minute
+
+************
+
+-- Currently executing queries
+SELECT 
+    thd.processlist_id,
+    thd.processlist_user,
+    thd.processlist_host,
+    stmt.sql_text,
+    stmt.current_schema,
+    stmt.timer_wait/1000000000000 as time_ms
+FROM performance_schema.threads thd
+JOIN performance_schema.events_statements_current stmt
+    ON thd.thread_id = stmt.thread_id
+WHERE thd.processlist_command = 'Query'
+ORDER BY stmt.timer_wait DESC;
+
+-- Blocking queries
+SELECT 
+    r.trx_id waiting_trx_id,
+    r.trx_mysql_thread_id waiting_thread,
+    r.trx_query waiting_query,
+    b.trx_id blocking_trx_id,
+    b.trx_mysql_thread_id blocking_thread,
+    b.trx_query blocking_query
+FROM information_schema.innodb_lock_waits w
+JOIN information_schema.innodb_trx b ON b.trx_id = w.blocking_trx_id
+JOIN information_schema.innodb_trx r ON r.trx_id = w.requesting_trx_id;
+————————————————————————————————————————————————————————————————
+
+5.
+————————————————————————————————————————————————————————————————
+
+-- Lock entire table (blocks all other operations)
+LOCK TABLES users WRITE;
+<This session and can read and write while other session can’t even read>
+UNLOCK TABLES;
+
+-- Read lock (allows others to read, blocks writes)
+LOCK TABLES users READ;
+<This session can read but not write while other session can also read but cannot write>
+UNLOCK TABLES;
+
+Problem: Very coarse-grained
+Locks entire table even if only updating 1 row
+
+*************
+
+Session1: 
+BEGIN;
+SELECT * FROM customers where id = 1 for update;
+
+Session 2: 
+Update customers set name = "Asdas” where id ‎ = 1; -> blocked until session1 commits or rollbacks 
+
+Also, 
+select * from customers where id = 1 will be allowed
+select * from customers where id = 1 for update won’t be allowed 
+
+**************
+
+Session 1: 
+BEGIN;
+Update customers set name = "Asdas” where id ‎ = 1;
+
+Session 2: 
+Update customers set name = "asswq” where id ‎ = 1; -> Blocked until session 1 commits or rollbacks
+
+***************
+
+Deadlocks: 
+
+-- Transaction A
+BEGIN;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;  -- Lock row 1
+-- ... some processing ...
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;  -- Need row 2
+COMMIT;
+
+-- Transaction B (running at same time)
+BEGIN;
+UPDATE accounts SET balance = balance - 50 WHERE id = 2;   -- Lock row 2
+-- ... some processing ...
+UPDATE accounts SET balance = balance + 50 WHERE id = 1;   -- Need row 1
+COMMIT;
+
+Result:
+A locked row 1, waiting for row 2
+B locked row 2, waiting for row 1
+DEADLOCK DETECTED!
+
+MySQL solution:
+Automatically kills one transaction (rolls back)
+Other transaction can complete
+Killed transaction must retry
+
+***********
+
+SHOW ENGINE INNODB STATUS\G
+
+***********
+
+SHOW STATUS LIKE 'Innodb_deadlocks';
+
+————————————————————————————————————————————————————————————————
+
+6.
+————————————————————————————————————————————————————————————————
+To see table size:
+SELECT 
+    table_name,
+    data_length/1024/1024 AS data_mb,
+    index_length/1024/1024 AS index_mb,
+    (data_length+index_length)/1024/1024 AS total_mb
+FROM information_schema.tables
+WHERE table_schema='my_store' AND table_name='customers';
+
+-- Optimize table (reclaim space, rebuild indexes)
+OPTIMIZE TABLE users;
+
+-- Optimize multiple tables
+OPTIMIZE TABLE users, orders, products;
+
+-- Check if table needs optimization
+CHECK TABLE users;
+
+-- Analyze table (update statistics)
+ANALYZE TABLE users;
+
+-- MySQL
+ANALYZE TABLE users;
+ANALYZE TABLE users, orders, products;
+
+-- PostgreSQL
+ANALYZE users;
+ANALYZE;  -- All tables
+
+-- Check statistics
+SELECT 
+    TABLE_NAME,
+    TABLE_ROWS,
+    AVG_ROW_LENGTH,
+    DATA_LENGTH,
+    UPDATE_TIME
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'mydb';
+
+************
+High load check:
+
+-- Active queries
+SHOW FULL PROCESSLIST;
+
+-- Long-running queries
+SELECT 
+    id,
+    user,
+    host,
+    db,
+    command,
+    time,
+    state,
+    info
+FROM information_schema.PROCESSLIST
+WHERE time > 10  -- Running > 10 seconds
+ORDER BY time DESC;
+
+-- CPU-intensive queries
+SELECT 
+    digest_text,
+    count_star,
+    avg_timer_wait/1000000000000 as avg_ms,
+    sum_rows_examined
+FROM performance_schema.events_statements_summary_by_digest
+ORDER BY sum_timer_wait DESC
+LIMIT 10;
