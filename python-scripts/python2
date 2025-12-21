@@ -1,0 +1,439 @@
+
+1.
+—————————————————————————————————
+
+import requests
+
+# Fetch a webpage
+response = requests.get('https://api.github.com')
+
+# Check if successful
+print(response.status_code)  # 200 means success
+
+# See the data
+print(response.text)
+
+***********
+
+import requests
+
+# Call joke API
+response = requests.get('https://official-joke-api.appspot.com/random_joke')
+
+# Convert JSON to Python dictionary
+joke = response.json()
+
+# Display joke
+print(f"Setup: {joke['setup']}")
+print(f"Punchline: {joke['punchline']}")
+
+**************
+
+import requests
+
+# Data to send
+user_data = {
+    'name': 'Rajat',
+    'email': 'rajat@example.com'
+}
+
+# Send POST request
+response = requests.post('https://httpbin.org/post', json=user_data)
+
+# Check response
+print(response.status_code)
+print(response.json())
+
+**********
+
+import requests
+
+# Custom headers
+headers = {
+    'User-Agent': 'MyApp/1.0',
+    'Accept': 'application/json'
+}
+
+response = requests.get('https://api.github.com', headers=headers)
+print(response.json())
+
+***********
+
+import requests
+
+# API key (usually from API provider)
+api_key = 'your-api-key-here'
+
+# Send with header
+headers = {'Authorization': f'Bearer {api_key}'}
+response = requests.get('https://api.example.com/data', headers=headers)
+
+# Or with params
+params = {'api_key': api_key}
+response = requests.get('https://api.example.com/data', params=params)
+
+***********
+
+import requests
+
+try:
+    response = requests.get('https://api.example.com', timeout=5)
+    response.raise_for_status()  # Raises error if status code is bad
+    data = response.json()
+    print(data)
+except requests.exceptions.Timeout:
+    print("Request timed out! Server too slow.")
+except requests.exceptions.ConnectionError:
+    print("Cannot connect! Check internet connection.")
+except requests.exceptions.HTTPError as e:
+    print(f"HTTP error occurred: {e}")
+except Exception as e:
+    print(f"Something went wrong: {e}")
+
+—————————————————————————————————
+
+2. Weather checker script 
+—————————————————————————————————
+
+import requests
+
+def get_weather(city):
+    """Get current weather for a city"""
+    # Using wttr.in free weather API
+    url = f'https://wttr.in/{city}?format=j1'
+    
+    try:
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        
+        data = response.json()
+        current = data['current_condition'][0]
+        
+        print(f"Weather in {city}:")
+        print(f"Temperature: {current['temp_C']}°C")
+        print(f"Condition: {current['weatherDesc'][0]['value']}")
+        print(f"Humidity: {current['humidity']}%")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+
+# Test it
+get_weather('London')
+
+—————————————————————————————————
+
+3.Email
+—————————————————————————————————
+
+import smtplib
+from email.message import EmailMessage
+
+# Create email
+msg = EmailMessage()
+msg['Subject'] = 'Test Email'
+msg['From'] = 'your-email@gmail.com'
+msg['To'] = 'recipient@example.com'
+msg.set_content('This is a test email from Python!')
+
+# Send via Gmail
+smtp_server = 'smtp.gmail.com'
+smtp_port = 587
+
+with smtplib.SMTP(smtp_server, smtp_port) as server:
+    server.starttls()  # Enable security
+    server.login('your-email@gmail.com', 'your-app-password')
+    server.send_message(msg)
+    print("Email sent successfully!")
+
+***********
+
+Email with attachments:   import smtplib
+from email.message import EmailMessage
+
+msg = EmailMessage()
+msg['Subject'] = 'Report Attached'
+msg['From'] = 'your-email@gmail.com'
+msg['To'] = 'recipient@example.com'
+msg.set_content('Please find the report attached.')
+
+# Attach file
+with open('report.pdf', 'rb') as f:
+    file_data = f.read()
+    msg.add_attachment(file_data, maintype='application',
+                      subtype='pdf', filename='report.pdf')
+
+# Send email
+with smtplib.SMTP('smtp.gmail.com', 587) as server:
+    server.starttls()
+    server.login('your-email@gmail.com', 'your-app-password')
+    server.send_message(msg)
+
+***************
+
+import smtplib
+from email.message import EmailMessage
+
+def safe_send_email(to, subject, content):
+    """Send email with error handling"""
+    
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = 'your-email@gmail.com'
+        msg['To'] = to
+        msg.set_content(content)
+        
+        with smtplib.SMTP('smtp.gmail.com', 587, timeout=10) as server:
+            server.starttls()
+            server.login('your-email@gmail.com', 'app-password')
+            server.send_message(msg)
+        
+        print("Email sent successfully!")
+        return True
+        
+    except smtplib.SMTPAuthenticationError:
+        print("Error: Wrong email or password")
+    except smtplib.SMTPException as e:
+        print(f"SMTP error: {e}")
+    except Exception as e:
+        print(f"Error: {e}")
+    
+    return False
+
+safe_send_email('user@example.com', 'Test', 'Hello!')
+—————————————————————————————————
+
+4. Health check
+—————————————————————————————————
+
+import requests
+
+def check_website(url):
+    """Check if website is up"""
+    try:
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code == 200:
+            print(f"✓ {url} is UP")
+            return True
+        else:
+            print(f"✗ {url} returned {response.status_code}")
+            return False
+            
+    except requests.exceptions.Timeout:
+        print(f"✗ {url} timed out")
+        return False
+    except Exception as e:
+        print(f"✗ {url} is DOWN: {e}")
+        return False
+
+# Test it
+check_website('https://google.com')
+check_website('https://github.com')
+
+***********
+
+import requests
+import time
+
+def monitor_services(urls, interval=60):
+    """Check multiple URLs periodically"""
+    
+    print(f"Monitoring {len(urls)} services...")
+    
+    while True:
+        print(f"\n--- Check at {time.strftime('%H:%M:%S')} ---")
+        
+        for url in urls:
+            try:
+                response = requests.get(url, timeout=5)
+                status = "✓ UP" if response.status_code == 200 else f"✗ {response.status_code}"
+                print(f"{url}: {status}")
+            except Exception as e:
+                print(f"{url}: ✗ DOWN")
+        
+        time.sleep(interval)  # Wait before next check
+
+# Usage
+services = [
+    'https://google.com',
+    'https://github.com',
+    'https://example.com'
+]
+
+monitor_services(services, interval=30)
+
+*********
+
+Check response time:   import requests
+import time
+
+def check_response_time(url):
+    """Measure how long website takes to respond"""
+    
+    start = time.time()
+    try:
+        response = requests.get(url, timeout=10)
+        end = time.time()
+        
+        response_time = (end - start) * 1000  # Convert to milliseconds
+        
+        print(f"{url}:")
+        print(f"  Status: {response.status_code}")
+        print(f"  Response time: {response_time:.2f}ms")
+        
+        # Alert if slow
+        if response_time > 1000:
+            print(f"  ⚠ SLOW! (>1 second)")
+        
+    except Exception as e:
+        print(f"{url}: Error - {e}")
+
+check_response_time('https://google.com')
+
+************
+
+import requests
+import smtplib
+from email.message import EmailMessage
+
+def check_and_alert(url, alert_email):
+    """Check service and send alert if down"""
+    
+    try:
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code != 200:
+            send_alert(url, f"Status code: {response.status_code}", alert_email)
+            return False
+        
+        print(f"✓ {url} is healthy")
+        return True
+        
+    except Exception as e:
+        send_alert(url, str(e), alert_email)
+        return False
+
+def send_alert(url, error, alert_email):
+    """Send email alert when service is down"""
+    
+    msg = EmailMessage()
+    msg['Subject'] = f'ALERT: {url} is DOWN'
+    msg['From'] = 'monitor@company.com'
+    msg['To'] = alert_email
+    msg.set_content(f"""
+    Service Alert
+    
+    URL: {url}
+    Status: DOWN
+    Error: {error}
+    Time: {time.strftime('%Y-%m-%d %H:%M:%S')}
+    
+    Please investigate immediately!
+    """)
+    
+    try:
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls()
+            server.login('monitor@company.com', 'app-password')
+            server.send_message(msg)
+        print(f"✗ Alert sent for {url}")
+    except Exception as e:
+        print(f"Failed to send alert: {e}")
+
+# Usage
+check_and_alert('https://myapp.com', 'admin@company.com')
+
+—————————————————————————————————
+
+
+———
+
+import requests
+from bs4 import BeautifulSoup
+
+# Fetch webpage
+response = requests.get('https://example.com')
+html = response.text
+
+# Parse HTML
+soup = BeautifulSoup(html, 'html.parser')
+
+# Find all headlines (h1 tags)
+headlines = soup.find_all('h1')
+
+# Print headlines
+for headline in headlines:
+    print(headline.text)
+
+
+*********
+
+from bs4 import BeautifulSoup
+
+html = "<html><body><h1>Title</h1><p class='content'>Text</p></body></html>"
+soup = BeautifulSoup(html, 'html.parser')
+
+# Find first h1 tag
+title = soup.find('h1')
+print(title.text)  # Output: Title
+
+# Find by class
+content = soup.find('p', class_='content')
+print(content.text)  # Output: Text
+
+# Find all paragraphs
+all_paragraphs = soup.find_all('p')
+
+# Find by ID
+element = soup.find(id='unique-id')
+
+**********
+
+import requests
+from bs4 import BeautifulSoup
+
+def scrape_book_prices():
+    """Scrape book titles and prices"""
+    url = 'http://books.toscrape.com/'
+    
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    # Find all books
+    books = soup.find_all('article', class_='product_pod')
+    
+    print("Available Books:")
+    for book in books[:5]:  # First 5 books only
+        title = book.find('h3').find('a')['title']
+        price = book.find('p', class_='price_color').text
+        print(f"- {title}: {price}")
+
+scrape_book_prices()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
