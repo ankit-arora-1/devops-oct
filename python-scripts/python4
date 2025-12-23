@@ -1,0 +1,125 @@
+
+
+1.
+————————————————————————————————
+
+sudo apt update
+sudo apt install at
+
+sudo systemctl start atd
+sudo systemctl enable atd
+
+at 3:00 PM
+echo "Task completed at 3 PM" >> /tmp/task.log
+# Press Ctrl+D
+
+at 9:00 AM tomorrow
+/home/user/backup.sh
+# Press Ctrl+D
+
+at now + 2 hours
+python3 /home/user/script.py
+# Press Ctrl+D
+
+at 2:30 PM              # Today at 2:30 PM
+at 14:30                # Today at 14:30 (2:30 PM)
+at midnight             # Tonight at 12:00 AM
+at noon                 # Today at 12:00 PM
+
+at now + 30 minutes     # 30 minutes from now
+at now + 2 hours        # 2 hours from now
+at now + 3 days         # 3 days from now
+at now + 1 week         # 1 week from now
+
+at 10:00 AM 01/15/2025  # January 15, 2025 at 10 AM
+at 2:00 PM tomorrow     # Tomorrow at 2 PM
+at 9:00 AM next Monday  # Next Monday at 9 AM
+
+See schedules jobs:   at -l   See what a specific Job will do:   at -c JOB_NUMBER
+
+Remove jobs:  atrm JOB_NUMBER
+ echo "/home/user/backup.sh" | at 2:00 AM tomorrow
+
+
+
+————————————————————————————————
+
+2.
+————————————————————————————————
+
+import schedule
+import time
+
+def backup():
+    print("Running backup...")
+    # Your backup code here
+
+# Schedule the job
+schedule.every(10).minutes.do(backup)
+
+# Keep running
+while True:
+    schedule.run_pending()
+    time.sleep(1)
+
+*************
+
+Every N minutes:
+schedule.every(5).minutes.do(task)
+
+Every hour:
+schedule.every().hour.do(task)
+
+Every day at specific time:
+schedule.every().day.at("10:30").do(task)
+
+Every Monday:
+schedule.every().monday.do(task)
+
+Every Monday at 9 AM:
+schedule.every().monday.at("09:00").do(task)
+
+*******  Daily report generator:   import schedule
+import time
+from datetime import datetime
+
+def generate_report():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Generating daily report at {timestamp}")
+    
+    # Your report generation logic
+    with open("/tmp/report.txt", "a") as f:
+        f.write(f"Report generated: {timestamp}\n")
+
+# Schedule report for 9 AM daily
+schedule.every().day.at("09:00").do(generate_report)
+
+print("Scheduler started. Press Ctrl+C to stop.")
+
+while True:
+    schedule.run_pending()
+    time.sleep(60)  # Check every minute
+
+*********
+
+Passing args:   def send_alert(message, recipient):
+    print(f"Sending '{message}' to {recipient}")
+
+# Schedule with arguments
+schedule.every().hour.do(send_alert, "System healthy", "admin@company.com")
+
+*****  Cancel job:   job = schedule.every().day.at("10:00").do(task)
+
+# Later, cancel it
+schedule.cancel_job(job)  Clear all jobs:   schedule.clear()  ******   Run once and remove the job:   def one_time_task():
+    print("Running once...")
+    return schedule.CancelJob  # This removes the job
+
+schedule.every().minute.do(one_time_task)   *******  
+
+
+
+
+
+
+
