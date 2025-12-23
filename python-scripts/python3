@@ -1,3 +1,5 @@
+
+
 1.
 ———————————————————————————————————————————————————
 
@@ -239,3 +241,131 @@ $   End of line
 ()  Group
 |   OR
 S Any char that is not whitespace 
+
+
+************
+Extract ip
+
+import re
+
+line = "192.168.1.100 - - [15/Dec/2024:10:23:45]"
+
+# Find IP address pattern
+match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
+if match:
+    ip = match.group(1)
+    print(f"IP: {ip}")  # Output: IP: 192.168.1.100
+
+*********
+Extract timestamp
+
+line = "2024-12-15 10:23:45 ERROR Payment failed"
+
+# Find timestamp pattern
+match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', line)
+if match:
+    timestamp = match.group(1)
+    print(f"Timestamp: {timestamp}")
+
+************
+
+Extract error code:  line = "Error code: 500 - Internal server error"
+
+# Find error code
+match = re.search(r'Error code: (\d+)', line)
+if match:
+    code = match.group(1)
+    print(f"Error code: {code}")  # Output: Error code: 500
+
+***************
+
+
+import re
+
+with open('/var/log/application.log', 'r') as file:
+    for line in file:
+        # Simple email pattern
+        emails = re.findall(r'[\w\.-]+@[\w\.-]+', line)
+        for email in emails:
+            print(email)
+
+*************
+
+import re
+
+# Apache log format:
+# 192.168.1.100 - - [15/Dec/2024:10:23:45 +0000] "GET /api/users HTTP/1.1" 200 1234
+
+pattern = r'(\S+) \S+ \S+ \[(.*?)\] "(.*?)" (\d+) (\d+)'
+
+with open('/var/log/nginx/access.log', 'r') as file:
+    for line in file:
+        match = re.search(pattern, line)
+        if match:
+            ip = match.group(1)
+            timestamp = match.group(2)
+            request = match.group(3)
+            status = match.group(4)
+            size = match.group(5)
+            
+            print(f"IP: {ip}, Status: {status}, Request: {request}")
+
+
+
+Note:  .*? means match as little as possible
+example: [15/Dec/2024:10:23:45 +0000] "GET /search?q=[test] will match till test] which we might want of we want to match only till 0000]
+
+***********
+
+Extract payment failures:  import re
+
+# Log line example:
+# 2024-12-15 10:23:45 ERROR Payment failed for transaction TX123456: Timeout
+
+pattern = r'Payment failed for transaction (\w+): (.+)'
+
+failures = []
+
+with open('/var/log/payment.log', 'r') as file:
+    for line in file:
+        match = re.search(pattern, line)
+        if match:
+            tx_id = match.group(1)
+            reason = match.group(2)
+            failures.append((tx_id, reason))
+
+# Print summary
+print(f"Total payment failures: {len(failures)}")
+print("\nFailed transactions:")
+for tx_id, reason in failures[:10]:
+    print(f"{tx_id}: {reason}")
+
+***************
+
+Count error by hours:  from collections import defaultdict
+
+errors_by_hour = defaultdict(int)
+
+with open('/var/log/application.log', 'r') as file:
+    for line in file:
+        if 'ERROR' not in line:
+            continue
+        
+        # Extract hour from timestamp: 2024-12-15 10:23:45
+        parts = line.split()
+        if len(parts) >= 2:
+            time_part = parts[1]  # 10:23:45
+            hour = time_part.split(':')[0]  # 10
+            
+            errors_by_hour[hour] += 1
+
+# Print results
+print("Errors by hour:")
+for hour in sorted(errors_by_hour.keys()):
+    count = errors_by_hour[hour]
+    print(f"{hour}:00 - {count} errors")
+
+——————————————————————————————————————————————————
+
+
+
